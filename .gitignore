@@ -16,13 +16,14 @@ venv/
 .env/
 
 # === Data files (large / sensitive) ===
-data/raw/
-data/processed/
+data/raw/*
+data/processed/*
 *.zip
 *.txt
 *.csv
 *.feather
 *.parquet
+!.gitkeep
 
 # === OS files ===
 .DS_Store
