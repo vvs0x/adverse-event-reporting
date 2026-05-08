@@ -1,0 +1,38 @@
+# === R ===
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.rds
+*.RData
+
+# === Python ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+.env/
+
+# === Data files (large / sensitive) ===
+raw_data/
+processed_data/
+*.zip
+*.txt
+*.csv
+*.feather
+*.parquet
+
+# === OS files ===
+.DS_Store
+Thumbs.db
+
+# === IDE / editor ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === Logs ===
+*.log
