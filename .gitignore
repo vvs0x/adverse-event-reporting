@@ -16,8 +16,8 @@ venv/
 .env/
 
 # === Data files (large / sensitive) ===
-raw_data/
-processed_data/
+data/raw/
+data/processed/
 *.zip
 *.txt
 *.csv
