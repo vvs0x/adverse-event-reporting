@@ -20,6 +20,7 @@ if (inherits(app_data, "error")) {
   choices <- head(choices, 500)
   drug_choices <- stats::setNames(choices$drugname_norm, choices$label)
   default_drug <- if (length(drug_choices)) unname(drug_choices[[1]]) else ""
+  role_choices <- stats::setNames(names(role_labels), role_labels)
 
   metadata_text <- if (!is.null(app_data$metadata) && nrow(app_data$metadata)) {
     paste("Data:", app_data$metadata$quarters[1])
@@ -32,12 +33,12 @@ if (inherits(app_data, "error")) {
     sidebarLayout(
       sidebarPanel(
         selectizeInput("drug", "Drug", choices = drug_choices, selected = default_drug),
-        sliderInput("age", "Age range", min = 0, max = 120, value = c(0, 120), step = 1),
+        sliderInput("age", "Known age range in years", min = 0, max = 120, value = c(0, 120), step = 1),
         selectInput("sex", "Sex", choices = c("All", "F", "M", "UNK"), selected = "All"),
-        checkboxGroupInput("roles", "Drug role", choices = role_labels, selected = names(role_labels)),
+        checkboxGroupInput("roles", "Drug role", choices = role_choices, selected = names(role_labels)),
         hr(),
         h4("How to use"),
-        p("Choose a drug, adjust the filters, then compare reports, therapies, indications, reactions, outcomes, demographics, and countries."),
+        p("Choose a drug, adjust the filters, then compare reports, therapies, indications, reactions, outcomes, demographics, and countries. The age filter uses reports with known age values."),
         p(metadata_text)
       ),
       mainPanel(
@@ -46,6 +47,8 @@ if (inherits(app_data, "error")) {
           tabPanel(
             "Reports",
             plotOutput("reports_plot", height = 320),
+            h4("Selected drug role summary"),
+            tableOutput("role_summary"),
             h4("Co-occurring substances"),
             tableOutput("co_drugs")
           ),
@@ -79,14 +82,11 @@ if (inherits(app_data, "error")) {
   )
 
   server <- function(input, output, session) {
-    selected_cases <- reactive({
+    report_set <- reactive({
       req(input$drug)
-      build_drug_case_table(app_data, input$drug)
-    })
-
-    filtered_cases <- reactive({
-      filter_cases(
-        selected_cases(),
+      filter_report_set(
+        app_data,
+        selected_drug = input$drug,
         age_range = input$age,
         sex_filter = input$sex,
         roles = input$roles
@@ -94,15 +94,15 @@ if (inherits(app_data, "error")) {
     })
 
     output$summary_text <- renderText({
-      cases <- filtered_cases()
+      reports <- report_set()
       paste0(
-        data.table::uniqueN(cases$primaryid), " reports and ",
-        nrow(cases), " drug records after filters"
+        length(reports$ids), " reports after filters; ",
+        reports$unknown_age_excluded, " selected-drug reports with unknown age are excluded by the age slider"
       )
     })
 
     output$reports_plot <- renderPlot({
-      dt <- reports_by_quarter_role(filtered_cases())
+      dt <- reports_by_quarter_role_for_selected_drug(report_set())
       validate(need(nrow(dt) > 0, "No reports for the selected filters."))
       ggplot(dt, aes(x = quarter_key, y = reports, fill = role_cod)) +
         geom_col(position = "dodge") +
@@ -110,35 +110,39 @@ if (inherits(app_data, "error")) {
         theme_minimal(base_size = 12)
     })
 
+    output$role_summary <- renderTable({
+      selected_drug_role_summary(report_set())[, .(role, reports)]
+    })
+
     output$co_drugs <- renderTable({
-      co_occurring_by_role(filtered_cases(), input$drug, n = 5)
+      co_occurring_by_role_for_reports(report_set(), input$drug, n = 5)
     })
 
     output$therapy_plot <- renderPlot({
-      dt <- filtered_cases()[!is.na(therapy_days) & therapy_days >= 0 & therapy_days <= 3650]
+      dt <- therapy_distribution_for_reports(app_data, report_set())
       validate(need(nrow(dt) > 0, "No completed therapy duration values for the selected filters."))
       ggplot(dt, aes(x = therapy_days)) +
         geom_histogram(bins = 30, fill = "#2f6f73", color = "white") +
-        labs(x = "Therapy length in days", y = "Drug records") +
+        labs(x = "Therapy length in days", y = "Therapy records") +
         theme_minimal(base_size = 12)
     })
 
     output$missing_values <- renderTable({
-      missing_value_summary(filtered_cases())
+      missing_value_summary(app_data, report_set())
     })
 
     output$indications_plot <- renderPlot({
-      dt <- top_indications(filtered_cases(), n = 10)
+      dt <- top_indications_for_reports(app_data, report_set(), n = 10)
       validate(need(nrow(dt) > 0, "No indication terms for the selected filters."))
-      ggplot(dt, aes(x = reorder(indi_pt, N), y = N)) +
+      ggplot(dt, aes(x = reorder(indi_pt, reports), y = reports)) +
         geom_col(fill = "#5b7f95") +
         coord_flip() +
-        labs(x = NULL, y = "Records") +
+        labs(x = NULL, y = "Reports") +
         theme_minimal(base_size = 12)
     })
 
     output$reactions_plot <- renderPlot({
-      dt <- top_reactions(app_data, filtered_cases(), n = 10)
+      dt <- top_reactions_for_reports(app_data, report_set(), n = 10)
       validate(need(nrow(dt) > 0, "No reaction terms for the selected filters."))
       ggplot(dt, aes(x = reorder(pt, N), y = N)) +
         geom_col(fill = "#8a6f3d") +
@@ -148,20 +152,19 @@ if (inherits(app_data, "error")) {
     })
 
     output$outcome_plot <- renderPlot({
-      dt <- outcome_distribution(filtered_cases())
+      dt <- outcome_distribution_for_reports(app_data, report_set())
       validate(need(nrow(dt) > 0, "No completed therapies with outcome values for the selected filters."))
-      ggplot(dt, aes(x = reorder(outcome, N), y = N)) +
+      ggplot(dt, aes(x = reorder(outcome, reports), y = reports)) +
         geom_col(fill = "#7f5a6a") +
         coord_flip() +
-        labs(x = NULL, y = "Records") +
+        labs(x = NULL, y = "Reports") +
         theme_minimal(base_size = 12)
     })
 
     output$age_plot <- renderPlot({
-      dt <- age_group_distribution(filtered_cases())
+      dt <- age_group_distribution_for_reports(report_set())
       validate(need(nrow(dt) > 0, "No age values for the selected filters."))
-      x_col <- names(dt)[1]
-      ggplot(dt, aes(x = reorder(as.character(.data[[x_col]]), reports), y = reports)) +
+      ggplot(dt, aes(x = reorder(as.character(age_group), reports), y = reports)) +
         geom_col(fill = "#4f7a52") +
         coord_flip() +
         labs(x = NULL, y = "Reports") +
@@ -169,7 +172,7 @@ if (inherits(app_data, "error")) {
     })
 
     output$country_plot <- renderPlot({
-      dt <- country_distribution(filtered_cases(), n = 10)
+      dt <- country_distribution_for_reports(report_set(), n = 10)
       validate(need(nrow(dt) > 0, "No country values for the selected filters."))
       ggplot(dt, aes(x = reorder(country, reports), y = reports)) +
         geom_col(fill = "#6f6f8f") +
