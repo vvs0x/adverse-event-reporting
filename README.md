@@ -77,12 +77,3 @@ The app lets the user:
 - Inspect missing values created by joining the FAERS tables.
 
 ## Presentation Notes
-
-A simple 10-minute structure:
-
-1. Explain FAERS: reports are split into seven `$`-delimited quarterly ASCII files.
-2. Show acquisition: the script scrapes FDA links, downloads recent quarters, unzips them, and keeps generic folder names.
-3. Show preprocessing: each entity is read with one generic function and combined with `year`, `quarter`, and `quarter_key`.
-4. Show app workflow: choose a drug, filter cases, and interpret required outputs.
-5. Discuss the two extra statistics: age groups and countries help identify who is affected and where reports come from.
-6. Mention limitations: FAERS is spontaneous reporting data, so counts are not incidence rates and do not prove causality.
