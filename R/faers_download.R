@@ -49,14 +49,44 @@ select_latest_archives <- function(archives, n = 8) {
   archives[order(archives$year, archives$quarter), ]
 }
 
-download_faers_archives <- function(archives, raw_dir = "data/raw") {
+zip_is_valid <- function(path) {
+  if (!file.exists(path) || file.info(path)$size == 0) {
+    return(FALSE)
+  }
+  ok <- tryCatch({
+    utils::unzip(path, list = TRUE)
+    TRUE
+  }, error = function(e) FALSE, warning = function(w) FALSE)
+  isTRUE(ok)
+}
+
+download_faers_archives <- function(archives, raw_dir = "data/raw", timeout = 600) {
   dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
   downloaded <- character(nrow(archives))
+  old_timeout <- getOption("timeout")
+  options(timeout = max(timeout, old_timeout))
+  on.exit(options(timeout = old_timeout), add = TRUE)
+
   for (i in seq_len(nrow(archives))) {
     dest <- file.path(raw_dir, sprintf("faers_ascii_%dQ%d.zip", archives$year[i], archives$quarter[i]))
-    if (!file.exists(dest)) {
-      message("Downloading ", archives$year[i], "Q", archives$quarter[i])
-      download.file(archives$url[i], destfile = dest, mode = "wb", quiet = FALSE)
+    if (zip_is_valid(dest)) {
+      message("Already downloaded ", archives$year[i], "Q", archives$quarter[i], ": ", dest)
+    } else {
+      if (file.exists(dest)) {
+        message("Removing incomplete download: ", dest)
+        unlink(dest)
+      }
+      message("Downloading ", archives$year[i], "Q", archives$quarter[i], " from ", archives$url[i])
+      tmp <- paste0(dest, ".part")
+      if (file.exists(tmp)) {
+        unlink(tmp)
+      }
+      download.file(archives$url[i], destfile = tmp, mode = "wb", quiet = FALSE)
+      if (!zip_is_valid(tmp)) {
+        unlink(tmp)
+        stop("Downloaded file is not a valid zip: ", archives$url[i], call. = FALSE)
+      }
+      file.rename(tmp, dest)
     }
     downloaded[i] <- dest
   }
@@ -83,10 +113,11 @@ download_latest_faers <- function(
     n = 8,
     raw_dir = "data/raw",
     min_year = 2012,
+    timeout = 600,
     url = "https://fis.fda.gov/extensions/FPD-QDE-FAERS/FPD-QDE-FAERS.html") {
   archives <- discover_faers_archives(url = url, min_year = min_year)
   archives <- select_latest_archives(archives, n = n)
-  zip_files <- download_faers_archives(archives, raw_dir = raw_dir)
+  zip_files <- download_faers_archives(archives, raw_dir = raw_dir, timeout = timeout)
   unzip_faers_archives(zip_files, raw_dir = raw_dir)
   invisible(archives)
 }

@@ -37,6 +37,12 @@ Download and unzip the latest 8 FAERS quarters:
 Rscript scripts/download_data.R
 ```
 
+The FDA files can be slow. The script uses a 10-minute timeout and removes incomplete zip files before retrying. If your connection is slower, increase it:
+
+```sh
+FAERS_DOWNLOAD_TIMEOUT=1800 Rscript scripts/download_data.R
+```
+
 Combine the seven FAERS entities and write processed files:
 
 ```sh
