@@ -23,9 +23,16 @@ if (inherits(app_data, "error")) {
   role_choices <- stats::setNames(names(role_labels), role_labels)
 
   metadata_text <- if (!is.null(app_data$metadata) && nrow(app_data$metadata)) {
-    paste("Data:", app_data$metadata$quarters[1])
+    paste("Loaded quarters:", app_data$metadata$quarters[1])
   } else {
     "Data: processed FAERS tables"
+  }
+  country_heading <- if ("occr_country" %in% names(app_data$demographic)) {
+    "Top event countries"
+  } else if ("reporter_country" %in% names(app_data$demographic)) {
+    "Top reporter countries"
+  } else {
+    "Top reporter/event countries"
   }
 
   ui <- fluidPage(
@@ -38,43 +45,71 @@ if (inherits(app_data, "error")) {
         checkboxGroupInput("roles", "Drug role", choices = role_choices, selected = names(role_labels)),
         hr(),
         h4("How to use"),
-        p("Choose a drug, adjust the filters, then compare reports, therapies, indications, reactions, outcomes, demographics, and countries. With the full 0-120 age range, reports with missing age are included; when the age range is narrowed, reports with missing age are excluded."),
+        tags$ul(
+          tags$li("Choose a drug."),
+          tags$li("Optionally filter by age, sex, and drug role."),
+          tags$li("Use the tabs to compare reports, therapy, medical terms, outcomes, demographics, and data quality.")
+        ),
+        h4("Age handling"),
+        p("Full 0-120 includes missing ages; narrowed ranges exclude missing ages."),
+        h4("Important limitation"),
+        p("FAERS counts are reports, not incidence rates, risk estimates, or proof of causality."),
+        h4("Data"),
         p(metadata_text)
       ),
       mainPanel(
         h4(textOutput("summary_text")),
+        tags$p(class = "text-muted", textOutput("age_note")),
         tabsetPanel(
           tabPanel(
             "Reports",
+            h3("Reports over time by selected drug role"),
             plotOutput("reports_plot", height = 320),
-            h4("Selected drug role summary"),
-            tableOutput("role_summary"),
-            h4("Co-occurring substances"),
-            tableOutput("co_drugs")
+            fluidRow(
+              column(
+                5,
+                h4("Selected drug reports by role"),
+                tableOutput("role_summary")
+              ),
+              column(
+                7,
+                h4("Most common other drugs in the same reports"),
+                p("Other drugs listed in the same reports; this does not prove interaction or causality."),
+                tableOutput("co_drugs")
+              )
+            )
           ),
           tabPanel(
             "Therapy",
-            plotOutput("therapy_plot", height = 320),
-            h4("Missing values after joins"),
-            tableOutput("missing_values")
+            h3("Therapy length distribution"),
+            plotOutput("therapy_plot", height = 320)
           ),
           tabPanel(
             "Medical terms",
+            h3("Top reported indications and reactions"),
             h4("Top indications"),
-            plotOutput("indications_plot", height = 300),
+            plotOutput("indications_plot", height = 280),
             h4("Top reactions"),
-            plotOutput("reactions_plot", height = 300)
+            plotOutput("reactions_plot", height = 280)
           ),
           tabPanel(
             "Outcomes",
+            h3("Reported serious outcomes"),
             plotOutput("outcome_plot", height = 320)
           ),
           tabPanel(
-            "Extra stats",
+            "Demographics",
+            h3("Additional demographics"),
             h4("Age groups"),
-            plotOutput("age_plot", height = 300),
-            h4("Countries"),
-            plotOutput("country_plot", height = 300)
+            plotOutput("age_plot", height = 280),
+            h4(country_heading),
+            plotOutput("country_plot", height = 280)
+          ),
+          tabPanel(
+            "Data quality",
+            h3("Data completeness"),
+            h4("Data completeness / missing values"),
+            tableOutput("missing_values")
           )
         )
       )
@@ -95,15 +130,27 @@ if (inherits(app_data, "error")) {
 
     output$summary_text <- renderText({
       reports <- report_set()
-      age_note <- if (isTRUE(reports$age_filter_active)) {
-        paste0(reports$unknown_age_excluded, " reports with missing age excluded by the age filter")
-      } else {
-        paste0(reports$unknown_age_reports, " reports with missing age included")
-      }
       paste0(
-        length(reports$ids), " reports after filters; ",
-        age_note
+        format(length(reports$ids), big.mark = ",", scientific = FALSE),
+        " reports match the selected filters."
       )
+    })
+
+    output$age_note <- renderText({
+      reports <- report_set()
+      if (isTRUE(reports$age_filter_active)) {
+        paste0(
+          "Note: ",
+          format(reports$unknown_age_excluded, big.mark = ",", scientific = FALSE),
+          " reports have missing age and are excluded because the age range is restricted."
+        )
+      } else {
+        paste0(
+          "Note: ",
+          format(reports$unknown_age_reports, big.mark = ",", scientific = FALSE),
+          " reports have missing age and are included because the full age range is selected."
+        )
+      }
     })
 
     output$reports_plot <- renderPlot({
