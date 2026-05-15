@@ -33,12 +33,12 @@ if (inherits(app_data, "error")) {
     sidebarLayout(
       sidebarPanel(
         selectizeInput("drug", "Drug", choices = drug_choices, selected = default_drug),
-        sliderInput("age", "Known age range in years", min = 0, max = 120, value = c(0, 120), step = 1),
+        sliderInput("age", "Age range in years", min = 0, max = 120, value = c(0, 120), step = 1),
         selectInput("sex", "Sex", choices = c("All", "F", "M", "UNK"), selected = "All"),
         checkboxGroupInput("roles", "Drug role", choices = role_choices, selected = names(role_labels)),
         hr(),
         h4("How to use"),
-        p("Choose a drug, adjust the filters, then compare reports, therapies, indications, reactions, outcomes, demographics, and countries. The age filter uses reports with known age values."),
+        p("Choose a drug, adjust the filters, then compare reports, therapies, indications, reactions, outcomes, demographics, and countries. With the full 0-120 age range, reports with missing age are included; when the age range is narrowed, reports with missing age are excluded."),
         p(metadata_text)
       ),
       mainPanel(
@@ -95,9 +95,14 @@ if (inherits(app_data, "error")) {
 
     output$summary_text <- renderText({
       reports <- report_set()
+      age_note <- if (isTRUE(reports$age_filter_active)) {
+        paste0(reports$unknown_age_excluded, " reports with missing age excluded by the age filter")
+      } else {
+        paste0(reports$unknown_age_reports, " reports with missing age included")
+      }
       paste0(
         length(reports$ids), " reports after filters; ",
-        reports$unknown_age_excluded, " selected-drug reports with unknown age are excluded by the age slider"
+        age_note
       )
     })
 

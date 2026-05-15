@@ -17,10 +17,10 @@ outcome_labels <- c(
 )
 
 role_labels <- c(
-  PS = "Primary suspect",
-  SS = "Secondary suspect",
-  C = "Concomitant",
-  I = "Interacting"
+  PS = "Primary suspect (PS)",
+  SS = "Secondary suspect (SS)",
+  C = "Concomitant (C)",
+  I = "Interacting (I)"
 )
 
 sex_labels <- c(
@@ -78,9 +78,10 @@ filter_report_set <- function(data, selected_drug, age_range = c(0, 120), sex_fi
   role_rows <- drug_rows[role_cod %in% roles]
   role_ids <- unique(role_rows$primaryid)
   demo <- data$demographic[primaryid %in% role_ids]
-  unknown_age_excluded <- data.table::uniqueN(demo[is.na(age_years), primaryid])
+  unknown_age_reports <- data.table::uniqueN(demo[is.na(age_years), primaryid])
 
-  if ("age_years" %in% names(demo)) {
+  age_filter_active <- !identical(as.numeric(age_range), c(0, 120))
+  if ("age_years" %in% names(demo) && age_filter_active) {
     demo <- demo[!is.na(age_years) & age_years >= age_range[1] & age_years <= age_range[2]]
   }
   if (!identical(sex_filter, "All") && "sex" %in% names(demo)) {
@@ -94,7 +95,9 @@ filter_report_set <- function(data, selected_drug, age_range = c(0, 120), sex_fi
     selected_drug = role_rows[primaryid %in% ids],
     all_drugs = data$drug[primaryid %in% ids],
     demographic = demo[primaryid %in% ids],
-    unknown_age_excluded = unknown_age_excluded
+    unknown_age_reports = unknown_age_reports,
+    unknown_age_excluded = if (age_filter_active) unknown_age_reports else 0L,
+    age_filter_active = age_filter_active
   )
 }
 
