@@ -38,7 +38,7 @@ if (inherits(app_data, "error")) {
   ui <- fluidPage(
     fluidRow(
       column(8, h2("FAERS Adverse Event Reporting")),
-      column(4, h5(class = "text-muted text-right", "Phineas Berdelis and Valentin Schwarz"))
+      column(4, h5(class = "text-muted text-right", "App by Phineas Berdelis and Valentin Schwarz"))
     ),
     sidebarLayout(
       sidebarPanel(
@@ -183,6 +183,7 @@ if (inherits(app_data, "error")) {
       validate(need(nrow(dt) > 0, "No completed therapy duration values for the selected filters."))
       plot_dt <- dt
       if (isTRUE(input$zoom_therapy) && nrow(dt) >= 10) {
+        # Display-only zoom: the underlying filtered therapy data stays unchanged.
         cutoff <- stats::quantile(dt$therapy_days, probs = 0.95, na.rm = TRUE, names = FALSE)
         if (is.finite(cutoff)) {
           plot_dt <- dt[therapy_days <= cutoff]

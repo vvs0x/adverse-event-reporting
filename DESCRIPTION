@@ -1,7 +1,10 @@
 Package: adverse.event.reporting
 Title: FAERS Adverse Event Reporting Shiny App
 Version: 0.1.0
-Authors@R: person("Student", "Project", role = c("aut", "cre"), email = "student@example.com")
+Authors@R: c(
+    person("Phineas", "Berdelis", role = c("aut", "cre")),
+    person("Valentin", "Schwarz", role = "aut")
+)
 Description: Student project for downloading, preparing, and exploring FDA FAERS adverse event data in Shiny.
 License: MIT
 Encoding: UTF-8

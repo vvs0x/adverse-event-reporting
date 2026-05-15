@@ -18,16 +18,10 @@ The assignment text is documented in `docs/assignment_full_extracted.md`. The FA
 Install the required packages:
 
 ```r
-install.packages(c("shiny", "data.table", "ggplot2", "rvest", "stringr", "xml2"))
+install.packages(c("shiny", "data.table", "ggplot2", "rvest", "stringr", "xml2", "nanoparquet"))
 ```
 
-Optional but recommended for the assignment's fast processed format requirement:
-
-```r
-install.packages("nanoparquet")
-```
-
-If `nanoparquet` is installed, processed files are written as parquet. Otherwise the scripts fall back to compressed RDS files so the project still runs.
+`nanoparquet` is used for the assignment's fast processed parquet format. If it is not installed, preprocessing falls back to compressed RDS files, but existing parquet files require `nanoparquet` to read.
 
 ## Data Workflow
 
@@ -66,14 +60,25 @@ FAERS_N_QUARTERS=4 Rscript scripts/preprocess_data.R
 
 The app lets the user:
 
-- Select a drug from the processed FAERS data.
+- Select a drug from the 500 most frequently reported drugs in the processed FAERS data.
 - Filter by age range, sex, and drug role (`PS`, `SS`, `C`, `I`).
-- View reports by quarter and role.
-- View frequent co-occurring substances in the other role categories.
-- View therapy length distribution.
-- View top indications and top reactions.
-- View outcome distribution for completed therapies.
-- View two extra statistics: age group distribution and country distribution.
-- Inspect missing values created by joining the FAERS tables.
+- View reports by quarter and selected drug role.
+- View the selected drug's role summary and common other drugs in the same reports.
+- View therapy length distribution, with an optional display-only zoom to typical values.
+- View top reported indications and reactions.
+- View serious outcome distribution for reports with completed therapies.
+- View demographics: age groups and event or reporter countries.
+- Inspect data completeness and missing values.
 
 ## Presentation Notes
+
+A simple 10-minute presentation structure:
+
+1. Explain FAERS briefly: spontaneous adverse event reports split across seven quarterly ASCII files.
+2. Show the data workflow: download from FDA, unzip into generic quarter folders, read all seven entities, and save processed parquet files.
+3. Explain the app workflow: choose a drug, optionally filter by age, sex, and selected drug role.
+4. Demonstrate one common drug, for example `DUPIXENT` or `ASPIRIN`, across the Reports, Therapy, Medical terms, Outcomes, Demographics, and Data quality tabs.
+5. Point out the two added statistics: age group distribution and country distribution.
+6. Mention the key limitation: FAERS counts are report counts, not incidence rates, risk estimates, or proof of causality.
+
+The data files do not need to be submitted. Submit the R code, README, and documentation files required by the course.
